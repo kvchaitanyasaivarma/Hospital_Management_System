@@ -14,12 +14,16 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Step 2: Trigger the scan via HTTP request
+      # Step 2: Trigger the scan via HTTP POST request
       - name: Trigger Scan
         env:
-          REPO_URL: ${{ github.repository_url }}  # Repository URL
-          BUILD_ID: ${{ github.run_id }}          # Unique build ID
-          BRANCH: ${{ github.ref_name }}          # Branch name
+          SERVER_URL: ${{ github.server_url }}  # GitHub server URL (e.g., https://github.com)
+          REPOSITORY: ${{ github.repository }}  # Repository name (e.g., user/repo)
+          BUILD_ID: ${{ github.run_id }}        # Unique build ID
+          BRANCH: ${{ github.ref_name }}        # Branch name
         run: |
-          curl -X GET \
-            "https://5866-2405-201-c053-700b-e034-abd9-1961-a277.ngrok-free.app/api/v1/scan_repo/trigger-scan/?repo_url=${{ env.REPO_URL }}&build_id=${{ env.BUILD_ID }}&branch=${{ env.BRANCH }}"
+          REPO_URL="${SERVER_URL}/${REPOSITORY}"  # Construct repo URL
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"repo_url": "'"${REPO_URL}"'", "build_id": "'"${BUILD_ID}"'", "branch": "'"${BRANCH}"'"}' \
+            https://5866-2405-201-c053-700b-e034-abd9-1961-a277.ngrok-free.app/api/v1/scan_repo/trigger-scan/
