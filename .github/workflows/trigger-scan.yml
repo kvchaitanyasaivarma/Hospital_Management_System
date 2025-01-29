@@ -1,0 +1,25 @@
+name: Trigger Scan on Push
+
+on:
+  push:
+    branches:
+      - '**'  # Trigger on any branch push
+
+jobs:
+  trigger-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Step 2: Trigger the scan via HTTP request
+      - name: Trigger Scan
+        env:
+          REPO_URL: ${{ github.repository_url }}  # Repository URL
+          BUILD_ID: ${{ github.run_id }}          # Unique build ID
+          BRANCH: ${{ github.ref_name }}          # Branch name
+        run: |
+          curl -X GET \
+            "https://5866-2405-201-c053-700b-e034-abd9-1961-a277.ngrok-free.app/api/v1/scan_repo/trigger-scan/?repo_url=${{ env.REPO_URL }}&build_id=${{ env.BUILD_ID }}&branch=${{ env.BRANCH }}"
