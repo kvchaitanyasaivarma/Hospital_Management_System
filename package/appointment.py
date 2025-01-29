@@ -2,7 +2,6 @@ from flask_restful import Resource, Api, request
 from package.model import conn
 
 
-
 class Appointments(Resource):
     """This contain apis to carry out activity with all appiontments"""
 
