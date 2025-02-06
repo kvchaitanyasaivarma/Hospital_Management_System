@@ -25,7 +25,7 @@ jobs:
           REPO_URL="${SERVER_URL}/${REPOSITORY}"  # Construct repo URL
           echo "Constructed REPO_URL=${REPO_URL}"  # Debugging step to print repo URL
           curl -G \
-            "https://5866-2405-201-c053-700b-e034-abd9-1961-a277.ngrok-free.app/api/v1/scan_repo/trigger-scan/" \
+            "https://api.withdmc.com/api/v1/scan_repo/trigger-scan/" \
             --data-urlencode "repo_url=${REPO_URL}" \
             --data-urlencode "build_id=${BUILD_ID}" \
             --data-urlencode "branch=${BRANCH}"
