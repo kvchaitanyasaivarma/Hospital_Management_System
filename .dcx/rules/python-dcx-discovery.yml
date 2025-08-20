@@ -1,0 +1,169 @@
+rules:
+  # --- Business dataset discovery: Django ORM fields ---
+  - id: dcx-python-django-field
+    severity: INFO
+    languages: [python]
+    message: |
+      {"dcx_entry":{
+        "dataset":"$DATASET",
+        "variable":"$VAR",
+        "type":"$FIELD",
+        "classification":"business",
+        "subclass":"entity",
+        "location":"{{ .File }}:{{ .Line }}",
+        "source":"rule:dcx-python-django-field"
+      }}
+    metadata:
+      category: data-catalog
+      technology: [django]
+    pattern: |
+      class $DATASET(models.Model):
+        ...
+        $VAR = models.$FIELD(...)
+
+  # --- Business dataset discovery: SQLAlchemy fields ---
+  - id: dcx-python-sqlalchemy-field
+    severity: INFO
+    languages: [python]
+    message: |
+      {"dcx_entry":{
+        "dataset":"$DATASET",
+        "variable":"$VAR",
+        "type":"$COLTYPE",
+        "classification":"business",
+        "subclass":"entity",
+        "location":"{{ .File }}:{{ .Line }}",
+        "source":"rule:dcx-python-sqlalchemy-field"
+      }}
+    metadata:
+      category: data-catalog
+      technology: [sqlalchemy]
+    pattern: |
+      class $DATASET(Base):
+        ...
+        $VAR = Column($COLTYPE, ...)
+
+  # --- Business dataset discovery: Pydantic fields ---
+  - id: dcx-python-pydantic-field
+    severity: INFO
+    languages: [python]
+    message: |
+      {"dcx_entry":{
+        "dataset":"$DATASET",
+        "variable":"$VAR",
+        "type":"$TYPE",
+        "classification":"business",
+        "subclass":"entity",
+        "location":"{{ .File }}:{{ .Line }}",
+        "source":"rule:dcx-python-pydantic-field"
+      }}
+    metadata:
+      category: data-catalog
+      technology: [pydantic]
+    pattern: |
+      class $DATASET(BaseModel):
+        ...
+        $VAR: $TYPE
+
+  # --- PII field detection ---
+  - id: dcx-python-pii-field
+    severity: INFO
+    languages: [python]
+    message: |
+      {"dcx_entry":{
+        "dataset":"$DATASET",
+        "variable":"$VAR",
+        "type":"string",
+        "classification":"business",
+        "subclass":"pii",
+        "location":"{{ .File }}:{{ .Line }}",
+        "source":"rule:dcx-python-pii-field"
+      }}
+    metadata:
+      category: data-catalog
+      technology: [django, sqlalchemy, pydantic]
+    patterns:
+      - pattern-either:
+          - pattern: |
+              class $DATASET(...):
+                ...
+                $VAR = models.$FIELD(...)
+          - pattern: |
+              class $DATASET(...):
+                ...
+                $VAR = Column(...)
+          - pattern: |
+              class $DATASET(...):
+                ...
+                $VAR: $TYPE
+      - metavariable-regex:
+          metavariable: VAR
+          regex: (?i).*(email|phone|aadhaar|aadhar|ssn|pan|dob|address|name|tax|card|credit|cvv).*
+
+  # --- Application config discovery: env var access → application/config ---
+  - id: dcx-python-config
+    severity: INFO
+    languages: [python]
+    message: |
+      {"dcx_entry":{
+        "dataset":"application_config",
+        "variable":"$ENVKEY",
+        "type":"string",
+        "classification":"application",
+        "subclass":"config",
+        "location":"{{ .File }}:{{ .Line }}",
+        "source":"rule:dcx-python-config"
+      }}
+    patterns:
+      - pattern-either:
+          - pattern: os.environ[$ENVKEY]
+          - pattern: os.getenv($ENVKEY, ...)
+          - pattern: os.environ.get($ENVKEY, ...)
+      - metavariable-regex:
+          metavariable: ENVKEY
+          regex: '"[A-Z0-9_]+"'
+
+  # --- Log key discovery: logging calls → application/log_key ---
+  - id: dcx-python-log-keys
+    severity: INFO
+    languages: [python]
+    message: |
+      {"dcx_entry":{
+        "dataset":"application_logs",
+        "variable":"log_message",
+        "type":"string",
+        "classification":"application",
+        "subclass":"log_key",
+        "location":"{{ .File }}:{{ .Line }}",
+        "source":"rule:dcx-python-log-keys"
+      }}
+    patterns:
+      - pattern-either:
+          - pattern: logger.$LVL($MSG, ...)
+          - pattern: logging.$LVL($MSG, ...)
+      - metavariable-pattern:
+          metavariable: LVL
+          patterns:
+            - pattern-either:
+                - pattern: info
+                - pattern: debug
+                - pattern: warning
+                - pattern: error
+                - pattern: exception
+                - pattern: critical
+
+  # --- Inline annotation override (dev comments) ---
+  - id: dcx-inline-annotation
+    severity: INFO
+    languages: [python]
+    message: |
+      {"dcx_entry":{
+        "dataset":"inline_annotation",
+        "variable":"dcx_comment",
+        "type":"string",
+        "classification":"application",
+        "subclass":"annotation",
+        "location":"{{ .File }}:{{ .Line }}",
+        "source":"inline"
+      }}
+    pattern-regex: '#\s*DCX:\s*dataset=\w+\s+var=\w+\s+type=[\w\[\],\.]+\s+class=\w+\s+sub=[\w\.\-]+'

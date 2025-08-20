@@ -1,0 +1,64 @@
+name: DCX Catalog (Semgrep)
+on:
+  pull_request:
+jobs:
+  dcx:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Python deps
+        run: |
+          python -V
+          pip install --upgrade pip jq
+
+      - name: Run Semgrep
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: .dcx/rules/
+          generateSarif: false
+          json: semgrep.json
+          auditOn: never
+
+      - name: Build DCX Catalog
+        run: |
+          python .dcx/scripts/dcx_catalog.py semgrep.json > dcx_catalog.json
+
+      - name: Download previous catalog (if any)
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: dcx-catalog.yml
+          name: dcx-reports
+          run_id: ${{ github.event.pull_request.base.sha }}
+        continue-on-error: true
+
+      - name: Delta Report
+        run: |
+          PREV="dcx_catalog_prev.json"
+          if [ -f "$PREV" ]; then
+            python .dcx/scripts/dcx_delta.py "$PREV" dcx_catalog.json > dcx_delta.json
+          else
+            python .dcx/scripts/dcx_delta.py - dcx_catalog.json > dcx_delta.json
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dcx-reports
+          path: |
+            semgrep.json
+            dcx_catalog.json
+            dcx_delta.json
+
+      - name: PR Comment
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          message: |
+            **DCX Catalog**
+            Entries: ${{ fromJson(steps.entries.outputs.count || '0') }}
+            Delta: $(jq -r '.summary' dcx_delta.json)
+            Files:
+            - semgrep.json
+            - dcx_catalog.json
+            - dcx_delta.json
+        continue-on-error: true
